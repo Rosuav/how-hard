@@ -2,7 +2,6 @@ import {lindt, replace_content, on, DOM} from "https://rosuav.github.io/choc/fac
 const {DETAILS, DIV, FORM, H3, INPUT, P, SECTION, SUMMARY, TABLE, TD, TR} = lindt; //autoimport
 
 //Transcribed from the KSP Wiki, https://wiki.kerbalspaceprogram.com/wiki/Science#Celestial_body_multipliers
-//TODO: Enumerate all biomes for all celestial bodies, in a consistent order
 const celestial_bodies = [
 	{id: "Sun", name: "Kerbol", gas: true, atmo: "18 km", space: "1000 Mm"}, //CHECK ME: What is the boundary between "in space high" and "low"?
 	{id: "Moho", name: "Moho", space: "80 km"}, //CHECK ID
@@ -45,12 +44,13 @@ function render_game(game) {
 		if (s.id.startsWith("recovery@")) return; //Ignore "recovery of a vessel that" as it doesn't follow the normal format (and is less useful anyway)
 		const info = /^([^@]+)@(.*?)(SrfLanded|SrfSplashed|FlyingLow|FlyingHigh|InSpaceLow|InSpaceHigh)(.*)$/.exec(s.id)
 		const [id, type, body, situ, biome] = info;
-		if (!bodies[body]) bodies[body] = { };
+		if (!bodies[body]) bodies[body] = {"": []};
 		if (!types.includes(type)) types.push(type);
 		if (!bodies[body][type]) bodies[body][type] = { };
 		const sci = bodies[body][type];
 		if (!sci[situ]) sci[situ] = { };
 		sci[situ][biome] = s;
+		if (biome && !bodies[body][""].includes(biome)) bodies[body][""].push(biome);
 	});
 	return SECTION([
 		H3("Celestial bodies you've visited:"),
@@ -79,6 +79,7 @@ function render_game(game) {
 							!sci[s] ? "Nothing collected, free to grab!" //Not sure here whether it uses biomes or not
 							: sci[s][""] ? sciencedata(["", sci[s][""]])
 							: DETAILS([
+								//TODO: Show count of untouched biomes for this science type
 								SUMMARY("Total " +
 									Object.values(sci[s])
 									.map(d => +d.cap - +d.sci)
@@ -86,6 +87,8 @@ function render_game(game) {
 									.toFixed(2)
 									+ " in " + Object.values(sci[s]).length + " biomes"
 								),
+								//TODO: List biomes in order seen (bodies[body.id][""]) rather than
+								//using object iteration order
 								Object.entries(sci[s]).map(sciencedata),
 							]),
 						]),
