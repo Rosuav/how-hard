@@ -1,7 +1,8 @@
 import {lindt, replace_content, on, DOM} from "https://rosuav.github.io/choc/factory.js";
-const {FORM, H3, INPUT, P, SECTION, TABLE, TD, TR} = lindt; //autoimport
+const {DETAILS, DIV, FORM, H3, INPUT, P, SECTION, SUMMARY, TABLE, TD, TR} = lindt; //autoimport
 
 //Transcribed from the KSP Wiki, https://wiki.kerbalspaceprogram.com/wiki/Science#Celestial_body_multipliers
+//TODO: Enumerate all biomes for all celestial bodies, in a consistent order
 const celestial_bodies = [
 	{id: "Sun", name: "Kerbol", gas: true, atmo: "18 km", space: "1000 Mm"}, //CHECK ME: What is the boundary between "in space high" and "low"?
 	{id: "Moho", name: "Moho", space: "80 km"}, //CHECK ID
@@ -22,9 +23,15 @@ const celestial_bodies = [
 	{id: "Eeloo", name: "Eeloo", space: "60 km"}, //CHECK ID
 ];
 
+function sciencedata([biome, data]) {
+	const left = +data.cap - +data.sci; //How much more can you learn?
+	if (biome) biome += " - ";
+	if (!left) return DIV(biome + "Complete"); //Actually nothing here, distinguishable from "0.00" which has underflowed.
+	return DIV(biome + left.toFixed(2));
+}
+
 function render_game(game) {
 	const research = game.SCENARIO.find(s => s.name === "ResearchAndDevelopment");
-	console.log(research);
 	let science = research.Science;
 	if (!science) science = [];
 	else if (!Array.isArray(science)) science = [science];
@@ -45,8 +52,6 @@ function render_game(game) {
 		if (!sci[situ]) sci[situ] = { };
 		sci[situ][biome] = s;
 	});
-	console.log(types);
-	console.log(bodies);
 	return SECTION([
 		H3("Celestial bodies you've visited:"),
 		TABLE({border: 1}, celestial_bodies.map(body => {
@@ -60,12 +65,33 @@ function render_game(game) {
 				"InSpaceLow", "InSpaceHigh", //You can ALWAYS go to space. Unless your flamey end is pointing up. Then you will not go to space today.
 			].filter(n => n);
 			//List all types of science for which you've ever returned any data
-			return types.map((t, i) => situ.map((s, j) => TR([
-				//TODO maybe: Distinguish moons from planets by indenting the former?
-				!i && !j && TD({rowSpan: types.length * situ.length}, body.name),
-				!j && TD({rowSpan: situ.length}, t),
-				TD(s),
-			])));
+			return types.map((t, i) => {
+				const sci = bodies[body.id][t] || { };
+				return situ.map((s, j) => {
+					return TR([
+						//TODO maybe: Distinguish moons from planets by indenting the former?
+						!i && !j && TD({rowSpan: types.length * situ.length}, body.name),
+						!j && TD({rowSpan: situ.length}, t),
+						TD(s),
+						TD([
+							//TODO: Recognize which type+situ care about biomes
+							//TODO: Recognize if a type+situ isn't even valid (eg atmo scan in space low)
+							!sci[s] ? "Nothing collected, free to grab!" //Not sure here whether it uses biomes or not
+							: sci[s][""] ? sciencedata(["", sci[s][""]])
+							: DETAILS([
+								SUMMARY("Total " +
+									Object.values(sci[s])
+									.map(d => +d.cap - +d.sci)
+									.reduce((a, b) => a + b, 0)
+									.toFixed(2)
+									+ " in " + Object.values(sci[s]).length + " biomes"
+								),
+								Object.entries(sci[s]).map(sciencedata),
+							]),
+						]),
+					]);
+				});
+			});
 		})),
 	]);
 }
