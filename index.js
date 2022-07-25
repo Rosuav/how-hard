@@ -22,13 +22,6 @@ const celestial_bodies = [
 	{id: "Eeloo", name: "Eeloo", space: "60 km"}, //CHECK ID
 ];
 
-function sciencedata([biome, data]) {
-	const left = +data.cap - +data.sci; //How much more can you learn?
-	if (biome) biome += " - ";
-	if (!left) return DIV(biome + "Complete"); //Actually nothing here, distinguishable from "0.00" which has underflowed.
-	return DIV(biome + left.toFixed(2));
-}
-
 function render_game(game) {
 	const research = game.SCENARIO.find(s => s.name === "ResearchAndDevelopment");
 	let science = research.Science;
@@ -44,13 +37,16 @@ function render_game(game) {
 		if (s.id.startsWith("recovery@")) return; //Ignore "recovery of a vessel that" as it doesn't follow the normal format (and is less useful anyway)
 		const info = /^([^@]+)@(.*?)(SrfLanded|SrfSplashed|FlyingLow|FlyingHigh|InSpaceLow|InSpaceHigh)(.*)$/.exec(s.id)
 		const [id, type, body, situ, biome] = info;
-		if (!bodies[body]) bodies[body] = {"": []};
+		if (!bodies[body]) bodies[body] = {"-dry": [], "-wet": []};
 		if (!types.includes(type)) types.push(type);
 		if (!bodies[body][type]) bodies[body][type] = { };
 		const sci = bodies[body][type];
 		if (!sci[situ]) sci[situ] = { };
 		sci[situ][biome] = s;
-		if (biome && !bodies[body][""].includes(biome)) bodies[body][""].push(biome);
+		if (biome) {
+			const arr = bodies[body][situ === "SrfSplashed" ? "-wet" : "-dry"];
+			if (!arr.includes(biome)) arr.push(biome);
+		}
 	});
 	return SECTION([
 		H3("Celestial bodies you've visited:"),
@@ -64,32 +60,43 @@ function render_game(game) {
 				body.atmo && "FlyingHigh",
 				"InSpaceLow", "InSpaceHigh", //You can ALWAYS go to space. Unless your flamey end is pointing up. Then you will not go to space today.
 			].filter(n => n);
+			//Spoiler-free list of biomes for the current celestial body. If you've
+			//never received any science from a biome, it won't be listed; but if (say)
+			//you get a crew report from the surface there, it'll then say that you
+			//could also get a crew report flying low over it. Note that SrfSplashed is
+			//special, and does not contribute to the general list of biomes, nor does
+			//it follow that list; instead, it has its own list of biomes, probably a
+			//much smaller one.
+			const drybiomes = bodies[body.id]["-dry"], wetbiomes = bodies[body.id]["-wet"];
 			//List all types of science for which you've ever returned any data
 			return types.map((t, i) => {
 				const sci = bodies[body.id][t] || { };
 				return situ.map((s, j) => {
+					//TODO: Recognize which type+situ care about biomes
+					//TODO: Recognize if a type+situ isn't even valid (eg atmo scan in space low)
+					let tot = 0, nonempty = 0, empty = 0;
+					const biomes = (!sci[s] ? [] : sci[s][""] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
+						const data = sci[s][biome];
+						if (biome) biome += " - ";
+						if (!data) {++empty; return DIV(biome + "Pristine");} //TODO: Calculate how much could be learned from here
+						++nonempty;
+						const left = +data.cap - +data.sci; //How much more can you learn?
+						tot += left;
+						if (!left) return DIV(biome + "Complete"); //Actually nothing here, distinguishable from "0.00" which has underflowed.
+						return DIV(biome + left.toFixed(2));
+					});
 					return TR([
 						//TODO maybe: Distinguish moons from planets by indenting the former?
 						!i && !j && TD({rowSpan: types.length * situ.length}, body.name),
 						!j && TD({rowSpan: situ.length}, t),
 						TD(s),
 						TD([
-							//TODO: Recognize which type+situ care about biomes
-							//TODO: Recognize if a type+situ isn't even valid (eg atmo scan in space low)
 							!sci[s] ? "Nothing collected, free to grab!" //Not sure here whether it uses biomes or not
-							: sci[s][""] ? sciencedata(["", sci[s][""]])
+							: sci[s][""] ? biomes[0] //there'll only be the one here
 							: DETAILS([
 								//TODO: Show count of untouched biomes for this science type
-								SUMMARY("Total " +
-									Object.values(sci[s])
-									.map(d => +d.cap - +d.sci)
-									.reduce((a, b) => a + b, 0)
-									.toFixed(2)
-									+ " in " + Object.values(sci[s]).length + " biomes"
-								),
-								//TODO: List biomes in order seen (bodies[body.id][""]) rather than
-								//using object iteration order
-								Object.entries(sci[s]).map(sciencedata),
+								SUMMARY(`Total ${tot.toFixed(2)} in ${nonempty}+${empty}  biomes`),
+								biomes,
 							]),
 						]),
 					]);
