@@ -3,7 +3,7 @@ const {FORM, H3, INPUT, P, SECTION, TABLE, TD, TR} = lindt; //autoimport
 
 //Transcribed from the KSP Wiki, https://wiki.kerbalspaceprogram.com/wiki/Science#Celestial_body_multipliers
 const celestial_bodies = [
-	{id: "Sun", name: "Kerbol", atmo: "18 km", space: "1000 Mm"}, //CHECK ME: What is the boundary between "in space high" and "low"?
+	{id: "Sun", name: "Kerbol", gas: true, atmo: "18 km", space: "1000 Mm"}, //CHECK ME: What is the boundary between "in space high" and "low"?
 	{id: "Moho", name: "Moho", space: "80 km"}, //CHECK ID
 	{id: "Eve", name: "Eve", wet: true, atmo: "22 km", space: "400 km"},
 	{id: "Gilly", name: "Gilly", space: "6 km"}, //CHECK ID
@@ -13,7 +13,7 @@ const celestial_bodies = [
 	{id: "Duna", name: "Duna", atmo: "12 km", space: "140 km"},
 	{id: "Ike", name: "Ike", space: "50 km"},
 	{id: "Dres", name: "Dres", space: "25 km"}, //CHECK ID
-	{id: "Jool", name: "Jool", atmo: "120 km", space: "4 Mm"}, //CHECK ID; also check boundary - should this be written as 4000 km?
+	{id: "Jool", name: "Jool", gas: true, atmo: "120 km", space: "4 Mm"}, //CHECK ID; also check boundary - should this be written as 4000 km?
 	{id: "Laythe", name: "Laythe", wet: true, atmo: "10 km", space: "200 km"}, //CHECK ID
 	{id: "Vall", name: "Vall", space: "90 km"}, //CHECK ID
 	{id: "Tylo", name: "Tylo", space: "250 km"}, //CHECK ID
@@ -51,9 +51,21 @@ function render_game(game) {
 		H3("Celestial bodies you've visited:"),
 		TABLE({border: 1}, celestial_bodies.map(body => {
 			if (!bodies[body.id]) return null; //Any celestial body you haven't visited, hide in the list.
-			return TR([
-				TD(body.name),
-			]);
+			//Valid situations for this celestial body
+			const situ = [
+				!body.gas && "SrfLanded",
+				body.wet && "SrfSplashed",
+				body.atmo && "FlyingLow",
+				body.atmo && "FlyingHigh",
+				"InSpaceLow", "InSpaceHigh", //You can ALWAYS go to space. Unless your flamey end is pointing up. Then you will not go to space today.
+			].filter(n => n);
+			//List all types of science for which you've ever returned any data
+			return types.map((t, i) => situ.map((s, j) => TR([
+				//TODO maybe: Distinguish moons from planets by indenting the former?
+				!i && !j && TD({rowSpan: types.length * situ.length}, body.name),
+				!j && TD({rowSpan: situ.length}, t),
+				TD(s),
+			])));
 		})),
 	]);
 }
