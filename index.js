@@ -75,12 +75,19 @@ function render_game(game) {
 			//it follow that list; instead, it has its own list of biomes, probably a
 			//much smaller one.
 			const drybiomes = bodies[body.id]["-dry"], wetbiomes = bodies[body.id]["-wet"];
+			//Since rowspan has to be on the FIRST row, not the LAST, we need to
+			//calculate the total number of rows first.
+			let fullspan = 0;
+			types.forEach(t => {
+				const expsitu = (experiments[t] || experiunknown).situ;
+				situ.forEach(s => expsitu[s] && ++fullspan);
+			});
 			//List all types of science for which you've ever returned any data
 			return types.map((t, i) => {
 				const sci = bodies[body.id][t] || { };
 				const exp = experiments[t] || experiunknown;
-				return situ.map((s, j) => {
-					if (!exp.situ[s]) return null; //Experiment not valid in this situation
+				const cursitu = situ.filter(s => exp.situ[s]); //Experiments valid in this situation
+				return cursitu.map((s, j) => {
 					let tot = 0, nonempty = 0, empty = 0;
 					//If we have non-biome data for this, assume it's a non-biome experiment.
 					//This takes care of unknown experiment types (if we don't have all data)
@@ -98,8 +105,8 @@ function render_game(game) {
 					});
 					return TR([
 						//TODO maybe: Distinguish moons from planets by indenting the former?
-						!i && !j && TD({rowSpan: types.length * situ.length}, body.name),
-						!j && TD({rowSpan: situ.length}, t),
+						!i && !j && TD({rowSpan: fullspan}, body.name),
+						!j && TD({rowSpan: cursitu.length}, t),
 						TD(s),
 						TD([
 							biomes.length === 1 ? biomes[0] //Non-biome experiments don't need a summary.
