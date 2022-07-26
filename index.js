@@ -1,5 +1,5 @@
 import {choc, lindt, replace_content, on, DOM} from "https://rosuav.github.io/choc/factory.js";
-const {DETAILS, DIV, FORM, H3, INPUT, P, SECTION, SUMMARY, TABLE, TD, TR} = lindt; //autoimport
+const {B, DETAILS, DIV, FORM, H3, I, INPUT, P, SECTION, SUMMARY, TABLE, TD, TR} = lindt; //autoimport
 
 //Transcribed from the KSP Wiki, https://wiki.kerbalspaceprogram.com/wiki/Science#Celestial_body_multipliers
 const celestial_bodies = [
@@ -101,13 +101,14 @@ function render_game(game) {
 					const cap = anydata ? +anydata.cap : 0;
 					const biomes = (cur[""] || !exp.biomes[s] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
 						const data = cur[biome];
-						if (biome) biome += " - ";
-						if (!data) {++empty; tot += cap; return DIV(biome + cap.toFixed(2) + " (pristine)");}
+						if (biome) biome = " - " + biome;
+						if (!data) {++empty; tot += cap; return DIV([cap.toFixed(2), B(biome + " (pristine)")]);}
 						++nonempty;
 						const left = +data.cap - +data.sci; //How much more can you learn?
 						tot += left;
-						if (!left) return DIV(biome + "Complete"); //Actually nothing here, distinguishable from "0.00" which has underflowed.
-						return DIV(biome + left.toFixed(2));
+						if (!left) biome += " (complete)"; //Actually nothing here, not merely underflowed.
+						if (left < 1.0) return DIV([left.toFixed(2), I(biome)]);
+						return DIV(left.toFixed(2) + biome);
 					});
 					return TR([
 						//TODO maybe: Distinguish moons from planets by indenting the former?
