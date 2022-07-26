@@ -75,15 +75,18 @@ function render_game(game) {
 			//it follow that list; instead, it has its own list of biomes, probably a
 			//much smaller one.
 			const drybiomes = bodies[body.id]["-dry"], wetbiomes = bodies[body.id]["-wet"];
+			//Some experiments don't make sense when there's no atmosphere.
+			const curtypes = bodies[body.id].atmo ? types
+				: types.filter(t => !experiments[t] || !experiments[t].atmo);
 			//Since rowspan has to be on the FIRST row, not the LAST, we need to
 			//calculate the total number of rows first.
 			let fullspan = 0;
-			types.forEach(t => {
+			curtypes.forEach(t => {
 				const expsitu = (experiments[t] || experiunknown).situ;
 				situ.forEach(s => expsitu[s] && ++fullspan);
 			});
 			//List all types of science for which you've ever returned any data
-			return types.map((t, i) => {
+			return curtypes.map((t, i) => {
 				const sci = bodies[body.id][t] || { };
 				const exp = experiments[t] || experiunknown;
 				const cursitu = situ.filter(s => exp.situ[s]); //Experiments valid in this situation
