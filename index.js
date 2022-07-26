@@ -1,4 +1,4 @@
-import {lindt, replace_content, on, DOM} from "https://rosuav.github.io/choc/factory.js";
+import {choc, lindt, replace_content, on, DOM} from "https://rosuav.github.io/choc/factory.js";
 const {DETAILS, DIV, FORM, H3, INPUT, P, SECTION, SUMMARY, TABLE, TD, TR} = lindt; //autoimport
 
 //Transcribed from the KSP Wiki, https://wiki.kerbalspaceprogram.com/wiki/Science#Celestial_body_multipliers
@@ -21,6 +21,13 @@ const celestial_bodies = [
 	{id: "Pol", name: "Pol", space: "22 km"}, //CHECK ID
 	{id: "Eeloo", name: "Eeloo", space: "60 km"}, //CHECK ID
 ];
+
+//Parsed from GameData/Squad/Resources/ScienceDefs.cfg which is the creation of
+//the Squad developers. Used only in conjunction with the game itself, as there's
+//no way to usefully analyze a savefile if you're not playing the game! Go buy it,
+//if you don't already; it's absolutely worth it.
+const experiments = { };
+const experiunknown = {situ: mask_to_kwd(-1), biomes: mask_to_kwd(-1), total: 1, atmo: false};
 
 function render_game(game) {
 	const research = game.SCENARIO.find(s => s.name === "ResearchAndDevelopment");
@@ -71,12 +78,16 @@ function render_game(game) {
 			//List all types of science for which you've ever returned any data
 			return types.map((t, i) => {
 				const sci = bodies[body.id][t] || { };
+				const exp = experiments[t] || experiunknown;
 				return situ.map((s, j) => {
-					//TODO: Recognize which type+situ care about biomes
-					//TODO: Recognize if a type+situ isn't even valid (eg atmo scan in space low)
+					if (!exp.situ[s]) return null; //Experiment not valid in this situation
 					let tot = 0, nonempty = 0, empty = 0;
-					const biomes = (!sci[s] ? [] : sci[s][""] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
-						const data = sci[s][biome];
+					//If we have non-biome data for this, assume it's a non-biome experiment.
+					//This takes care of unknown experiment types (if we don't have all data)
+					//while not being entirely borked.
+					const cur = sci[s] || { };
+					const biomes = (cur[""] || !exp.biomes[s] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
+						const data = cur[biome];
 						if (biome) biome += " - ";
 						if (!data) {++empty; return DIV(biome + "Pristine");} //TODO: Calculate how much could be learned from here
 						++nonempty;
@@ -91,10 +102,8 @@ function render_game(game) {
 						!j && TD({rowSpan: situ.length}, t),
 						TD(s),
 						TD([
-							!sci[s] ? "Nothing collected, free to grab!" //Not sure here whether it uses biomes or not
-							: sci[s][""] ? biomes[0] //there'll only be the one here
+							biomes.length === 1 ? biomes[0] //Non-biome experiments don't need a summary.
 							: DETAILS([
-								//TODO: Show count of untouched biomes for this science type
 								SUMMARY(`Total ${tot.toFixed(2)} in ${nonempty}+${empty}  biomes`),
 								biomes,
 							]),
@@ -122,6 +131,24 @@ function render() {
 }
 render();
 
+function mask_to_kwd(n) {
+	const ret = { };
+	"SrfLanded SrfSplashed FlyingLow FlyingHigh InSpaceLow InSpaceHigh".split(" ")
+	.forEach((k, i) => (n & (1<<i)) && (ret[k] = 1));
+	return ret;
+}
+
+function parse_science_data(exps) {
+	const science = { };
+	exps.forEach(exp => science[exp.id] = {
+		situ: mask_to_kwd(exp.situationMask|0),
+		biomes: mask_to_kwd(exp.biomeMask|0),
+		total: exp.scienceCap, //Total amount of science that can be obtained from this (scaled by body and situation)
+		atmo: exp.requireAtmosphere === "True", //If true, suppress this completely on bodies with no atmosphere
+	});
+	document.body.appendChild(choc.PRE(JSON.stringify(science)));
+}
+
 function set(parent, key, value) {
 	//Note that arrays are defined simply by having multiple entries
 	//with the same name, so we autoarrayify here when duplicates are
@@ -140,8 +167,9 @@ function parse_savefile(raw) {
 		//1) Optional indentation, then variable " = " value
 		//2) Optional indentation, then variable; the next line is an open brace; build object recursively.
 		//3ish) Close brace to mark the end of mode 2.
-		line = line.trimStart();
+		line = line.trimStart().split("//")[0]; //I don't know if there's a way to quote a string so it contains a double slash
 		const m = /^(.*?) = (.*)$/.exec(line);
+		line = line.trim();
 		if (m) set(nest[nest.length - 1], m[1], m[2]);
 		else if (!line) continue; //Ignore blank lines
 		else if (line === "{") continue; //Is supposed to come immediately after a bare name, but we don't check
@@ -149,6 +177,7 @@ function parse_savefile(raw) {
 		else nest.push(set(nest[nest.length - 1], line, { }));
 	}
 	//assert nest.length === 1
+	if (nest[0].EXPERIMENT_DEFINITION) {parse_science_data(nest[0].EXPERIMENT_DEFINITION); return;} //Hack
 	display_game = nest[0].GAME;
 	render();
 }
