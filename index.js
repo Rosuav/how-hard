@@ -105,7 +105,7 @@ function render_game(game) {
 					const biomes = (cur[""] || !exp.biomes[s] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
 						const data = cur[biome];
 						if (biome) biome = " - " + biome;
-						if (!data) {++empty; tot += cap; return DIV([cap.toFixed(2), B(biome + " (pristine)")]);}
+						if (!data) {++empty; tot += cap; return DIV([cap && cap.toFixed(2), B(biome + " (pristine)")]);}
 						++nonempty;
 						const left = +data.cap - +data.sci; //How much more can you learn?
 						tot += left;
