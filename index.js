@@ -93,10 +93,16 @@ function render_game(game) {
 					//This takes care of unknown experiment types (if we don't have all data)
 					//while not being entirely borked.
 					const cur = sci[s] || { };
+					//Figure out the cap. Since biomes don't affect the cap, we can take any
+					//experiment result for this body and situation, and the cap will be the
+					//same; this means that the only case we can't determine this way is the
+					//case where we have no data whatsoever, which can be abbreviated.
+					const anydata = Object.values(cur)[0];
+					const cap = anydata ? +anydata.cap : 0;
 					const biomes = (cur[""] || !exp.biomes[s] ? [""] : s === "SrfSplashed" ? wetbiomes : drybiomes).map(biome => {
 						const data = cur[biome];
 						if (biome) biome += " - ";
-						if (!data) {++empty; return DIV(biome + "Pristine");} //TODO: Calculate how much could be learned from here
+						if (!data) {++empty; tot += cap; return DIV(biome + cap.toFixed(2) + " (pristine)");}
 						++nonempty;
 						const left = +data.cap - +data.sci; //How much more can you learn?
 						tot += left;
