@@ -119,6 +119,7 @@ function render_game(game) {
 						!j && TD({rowSpan: cursitu.length}, t),
 						TD(s),
 						TD([
+							biomes.length === 0 ? B("(all biomes pristine)") :
 							biomes.length === 1 ? biomes[0] //Non-biome experiments don't need a summary.
 							: DETAILS([
 								SUMMARY(`Total ${tot.toFixed(2)} in ${nonempty}+${empty}  biomes`),
