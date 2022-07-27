@@ -76,7 +76,7 @@ function render_game(game) {
 			//much smaller one.
 			const drybiomes = bodies[body.id]["-dry"], wetbiomes = bodies[body.id]["-wet"];
 			//Some experiments don't make sense when there's no atmosphere.
-			const curtypes = bodies[body.id].atmo ? types
+			const curtypes = body.atmo ? types
 				: types.filter(t => !experiments[t] || !experiments[t].atmo);
 			//Since rowspan has to be on the FIRST row, not the LAST, we need to
 			//calculate the total number of rows first.
