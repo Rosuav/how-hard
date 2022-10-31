@@ -204,3 +204,9 @@ on("change", "input[type=file]", e => {
 	for (let f of e.match.files) f.text().then(parse_savefile);
 	e.match.value = "";
 });
+
+//If we have a fragment with a URL in it, fetch that URL and load it as a savefile.
+//Example: https://rosuav.github.io/how-hard/#https://example.com/fetch_kerbal_save
+if (location.hash && location.hash.startsWith("#http")) {
+	fetch(location.hash.slice(1)).then(r => r.text()).then(parse_savefile);
+}
